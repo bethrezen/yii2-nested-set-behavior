@@ -5,7 +5,7 @@
  * @license http://opensource.org/licenses/BSD-3-Clause
  */
 
-namespace creocoder\behaviors;
+namespace bethrezen\behaviors;
 
 use yii\base\Behavior;
 use yii\db\ActiveRecord;

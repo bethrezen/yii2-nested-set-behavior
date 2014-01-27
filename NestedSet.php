@@ -5,7 +5,7 @@
  * @license http://opensource.org/licenses/BSD-3-Clause
  */
 
-namespace creocoder\behaviors;
+namespace bethrezen\behaviors;
 
 use yii\base\Behavior;
 use yii\base\Event;
@@ -83,8 +83,15 @@ class NestedSet extends Behavior
 	public function init()
 	{
 		parent::init();
-		self::$_cached[get_class($this->owner)][$this->_id = self::$_c++] = $this->owner;
+		
 	}
+
+	// public function attach($owner) {
+	// 	parent::attach($owner);
+	// 	if (!$this->_id)
+	// 		$this->_id = self::$_c++;
+	// 	self::$_cached[get_class($this->owner)][$this->_id] = $this->owner;
+	// }
 
 	/**
 	 * Gets descendants for node.
@@ -234,7 +241,16 @@ class NestedSet extends Behavior
 		}
 
 		if ($this->owner->getIsNewRecord()) {
-			return $this->makeRoot($attributes);
+			$result = $this->makeRoot($attributes);
+			//echo "New record ".$this->owner->id." result: " . var_export($result,true)."<BR><BR>";
+			if ($result){
+				if (!$this->_id)
+					$this->_id = self::$_c++;
+				self::$_cached[get_class($this->owner)][$this->_id] = $this->owner;
+			//	echo "<h5>Put to cache: ".$this->owner->id."</h5>";
+				//self::$_cached[get_class($this->owner)][$this->_id = self::$_c++] = $this->owner;
+			}
+			return $result;
 		}
 
 		$this->_ignoreEvent = true;
@@ -624,7 +640,11 @@ class NestedSet extends Behavior
 	 */
 	public function afterFind($event)
 	{
-		self::$_cached[get_class($this->owner)][$this->_id = self::$_c++] = $this->owner;
+		//echo "After find called for ".get_class($this->owner)." id = ".$this->owner->id."\n\n";
+		if (!$this->_id)
+			$this->_id = self::$_c++;
+		self::$_cached[get_class($this->owner)][$this->_id] = $this->owner;
+		//self::$_cached[get_class($this->owner)][$this->_id = self::$_c++] = $this->owner;
 	}
 
 	/**
@@ -697,6 +717,10 @@ class NestedSet extends Behavior
 		}
 	}
 
+	public function getCached() {
+		return self::$_cached;
+	}
+
 	/**
 	 * @param ActiveRecord $target.
 	 * @param int $key.
@@ -760,15 +784,19 @@ class NestedSet extends Behavior
 				return false;
 			}
 
+			if (!$this->_id)
+				$this->_id = self::$_c++;
+			self::$_cached[get_class($this->owner)][$this->_id] = $this->owner;
+
 			if (isset($transaction)) {
 				$transaction->commit();
 			}
 
 			$this->correctCachedOnAddNode($key);
 		} catch (\Exception $e) {
-			if (isset($transaction)) {
-				$transaction->rollback();
-			}
+			// if (isset($transaction)) {
+			// 	$transaction->rollback();
+			// }
 
 			throw $e;
 		}
@@ -1042,6 +1070,9 @@ class NestedSet extends Behavior
 	 */
 	private function correctCachedOnAddNode($key)
 	{
+		if (!isset(self::$_cached[get_class($this->owner)]))
+			die("Getclass returned ".get_class($this->owner)."\n\n".print_r(array_keys(self::$_cached), true));
+		
 		foreach (self::$_cached[get_class($this->owner)] as $node) {
 			/** @var $node ActiveRecord */
 			if ($node->getIsNewRecord() || $node->getIsDeletedRecord()) {
